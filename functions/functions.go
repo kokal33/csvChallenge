@@ -33,18 +33,6 @@ func SimplifyFormulas(cellMap map[string]string, standaloneFormulas map[string]s
 	// Regular expression to match headers with index
 	headerRe := regexp.MustCompile(`@(.*?)<1>`)
 
-	// A helper function to find the cell reference for a given header
-	findCellForHeader := func(header string) string {
-		for cell, value := range cellMap {
-			// If the cell value starts with "!", it's a header
-			if strings.HasPrefix(value, "!") && strings.TrimLeft(value, "!") == header {
-				// The cell for the header is in the next row (e.g., if the header is in "A1", the cell is in "A2")
-				return string(cell[0]) + strconv.Itoa(int(cell[1]-'0')+1)
-			}
-		}
-		return "" // Return an empty string if the header was not found
-	}
-
 	for cell, formula := range standaloneFormulas {
 		// Process cell references
 		cellMatches := cellRe.FindAllString(formula, -1)
@@ -59,7 +47,7 @@ func SimplifyFormulas(cellMap map[string]string, standaloneFormulas map[string]s
 		headerMatches := headerRe.FindAllStringSubmatch(formula, -1)
 		for _, match := range headerMatches {
 			// match[0] is the full string (e.g., "@adjusted_cost<1>"), match[1] is the header (e.g., "adjusted_cost")
-			headerCell := findCellForHeader(match[1])
+			headerCell := findCellForHeader(cellMap, match[1])
 			value, exists := cellMap[headerCell]
 			if exists {
 				// Replace the header reference with the value from the cell
@@ -71,6 +59,23 @@ func SimplifyFormulas(cellMap map[string]string, standaloneFormulas map[string]s
 	}
 
 	return processedFormulas
+}
+
+func findCellForHeader(cellMap map[string]string, header string) string {
+	for cell, value := range cellMap {
+		// If the cell value starts with "!", it's a header
+		if strings.HasPrefix(value, "!") && strings.TrimLeft(value, "!") == header {
+			// Split the cell into column and row parts
+			column := cell[:1]
+			row, err := strconv.Atoi(cell[1:])
+			if err != nil {
+				continue // If the row part is not a number, skip this cell
+			}
+			// The cell for the header is in the next row
+			return fmt.Sprintf("%s%d", column, row+1)
+		}
+	}
+	return "" // Return an empty string if the header was not found
 }
 
 // SOLVING
