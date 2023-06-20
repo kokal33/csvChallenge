@@ -34,18 +34,6 @@ func SimplifyFormulas(cellMap map[string]string, standaloneFormulas map[string]s
 	headerRe := regexp.MustCompile(`@(.*?)<1>`)
 
 	for cell, formula := range standaloneFormulas {
-		// Process cell references
-		cellMatches := cellRe.FindAllString(formula, -1)
-		for _, match := range cellMatches {
-			value, exists := cellMap[match]
-			if exists {
-				formula = strings.Replace(formula, match, value, -1)
-			} else {
-				// If the value is not found or empty string, we write 0
-				formula = strings.Replace(formula, match, "0", -1)
-			}
-		}
-
 		// Process header references
 		headerMatches := headerRe.FindAllStringSubmatch(formula, -1)
 		for _, match := range headerMatches {
@@ -55,6 +43,18 @@ func SimplifyFormulas(cellMap map[string]string, standaloneFormulas map[string]s
 			if exists {
 				// Replace the header reference with the value from the cell
 				formula = strings.Replace(formula, match[0], value, -1)
+			}
+		}
+
+		// Process cell references
+		cellMatches := cellRe.FindAllString(formula, -1)
+		for _, match := range cellMatches {
+			value, exists := cellMap[match]
+			if exists {
+				formula = strings.Replace(formula, match, value, -1)
+			} else {
+				// If the value is not found or empty string, we write 0
+				formula = strings.Replace(formula, match, "0", -1)
 			}
 		}
 
