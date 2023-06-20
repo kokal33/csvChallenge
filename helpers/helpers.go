@@ -114,3 +114,14 @@ func CleanFormula(formula string) string {
 	formula = strings.Replace(formula, "=", "", 1)
 	return formula
 }
+
+func FilterEmptyStrings(params []string) []string {
+	var filtered []string
+	for _, param := range params {
+		trimmed := strings.TrimSpace(param)
+		if trimmed != "" {
+			filtered = append(filtered, trimmed)
+		}
+	}
+	return filtered
+}

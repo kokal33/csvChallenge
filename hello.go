@@ -93,9 +93,9 @@ func main() {
 	standaloneFormulas := helpers.GetStandaloneFormulas(cellMap)
 	for key, formula := range standaloneFormulas {
 		fmt.Println("Start processing formula: ", formula, " on cell: ", key)
-		processed := functions.ProcessFormula(formula)
+		processed := functions.ProcessFormula(key, formula, &standaloneFormulas)
 		fmt.Println("Processed formula, result: ", processed)
-
 	}
+	helpers.MapFormulasToCellMap(cellMap, standaloneFormulas)
 	printData(cellMap, maxRows, maxCols)
 }

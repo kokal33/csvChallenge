@@ -40,6 +40,9 @@ func SimplifyFormulas(cellMap map[string]string, standaloneFormulas map[string]s
 			value, exists := cellMap[match]
 			if exists {
 				formula = strings.Replace(formula, match, value, -1)
+			} else {
+				// If the value is not found or empty string, we write 0
+				formula = strings.Replace(formula, match, "0", -1)
 			}
 		}
 
@@ -93,7 +96,7 @@ func getInnerMostFunction(formula string) (string, bool) {
 	return matches[len(matches)-1], true
 }
 
-func ProcessFormula(toProcess string) string {
+func ProcessFormula(key string, toProcess string, standaloneFormulas *map[string]string) string {
 	formula := helpers.CleanFormula(toProcess)
 	innerFunction, found := getInnerMostFunction(formula)
 
@@ -106,6 +109,7 @@ func ProcessFormula(toProcess string) string {
 		innerFunction, found = getInnerMostFunction(formula)
 	}
 
+	(*standaloneFormulas)[key] = formula
 	return formula
 }
 
@@ -139,6 +143,16 @@ func solveFunction(fn string) (string, error) {
 
 func callFunction(funcName string, params []string) (string, error) {
 	switch funcName {
+	case "bte":
+		if len(params) != 2 {
+			return "", fmt.Errorf("bte expects exactly 2 arguments")
+		}
+		a, err1 := strconv.ParseFloat(params[0], 64)
+		b, err2 := strconv.ParseFloat(params[1], 64)
+		if err1 != nil || err2 != nil {
+			return "", fmt.Errorf("bte expects arguments that can be parsed to float64")
+		}
+		return strconv.FormatBool(bte(a, b)), nil
 	case "incFrom":
 		paramInt, err := strconv.Atoi(params[0])
 		if err != nil {
@@ -154,8 +168,9 @@ func callFunction(funcName string, params []string) (string, error) {
 	case "concat":
 		return concat(params...), nil
 	case "split":
-		splitResult := split(params[0], params[1])
-		return strings.Join(splitResult, ","), nil
+		// The params are already splitted from the solve function, we just return them here
+		filteredParams := helpers.FilterEmptyStrings(params)
+		return strings.Join(filteredParams, ","), nil
 	case "spread":
 		spreadResult, err := spread(params)
 		if err != nil {
@@ -195,16 +210,28 @@ func split(s, delimiter string) []string {
 	return strings.Split(s, delimiter)
 }
 
-func spread(s []string) ([]float64, error) {
-	numbers := make([]float64, len(s))
-	for i, str := range s {
-		num, err := strconv.ParseFloat(str, 64)
+func spread(params []string) (float64, error) {
+	var numbers []float64
+
+	for _, param := range params {
+		num, err := strconv.ParseFloat(param, 64)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
-		numbers[i] = num
+		numbers = append(numbers, num)
 	}
-	return numbers, nil
+
+	min, max := numbers[0], numbers[0]
+	for _, num := range numbers {
+		if num < min {
+			min = num
+		}
+		if num > max {
+			max = num
+		}
+	}
+
+	return max - min, nil
 }
 
 func sum(nums []float64) float64 {
@@ -215,6 +242,10 @@ func sum(nums []float64) float64 {
 	return total
 }
 
+func bte(a float64, b float64) bool {
+	return a >= b
+}
+
 var funcMap = map[string]interface{}{
 	"incFrom": incFrom,
 	"text":    text,
@@ -222,6 +253,7 @@ var funcMap = map[string]interface{}{
 	"split":   split,
 	"spread":  spread,
 	"sum":     sum,
+	"bte":     bte,
 }
 
 func GetFunction(name string) (interface{}, bool) {
