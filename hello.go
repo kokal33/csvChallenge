@@ -14,7 +14,9 @@ func readFile(filename string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return string(data)
+	// replace all \r with an empty string
+	dataStr := strings.ReplaceAll(string(data), "\r", "")
+	return dataStr
 }
 
 func createCellMap(data string) map[string]string {
@@ -82,7 +84,7 @@ func main() {
 	maxRows, maxCols := helpers.GetMaxRowsAndCols(cellMap)
 
 	// Get the all formulas
-	allFormulas := helpers.GetFormulas(cellMap)
+	allFormulas := helpers.GetAllFormulas(cellMap)
 	// Process the formulas, mapping the cell numbers with their value
 	processedAllFormulas := functions.SimplifyFormulas(cellMap, allFormulas)
 	helpers.MapFormulasToCellMap(cellMap, processedAllFormulas)
@@ -90,6 +92,7 @@ func main() {
 	functions.ProcessDoubleCaret(cellMap)
 
 	// Get standalone formulas, to solve them before solving the Evaluated ^ ones
+	fmt.Println("****** SOLVING STANDALONE FORMULAS ******")
 	standaloneFormulas := helpers.GetStandaloneFormulas(cellMap)
 	for key, formula := range standaloneFormulas {
 		fmt.Println("Start processing formula: ", formula, " on cell: ", key)
@@ -97,5 +100,26 @@ func main() {
 		fmt.Println("Processed formula, result: ", processed)
 	}
 	helpers.MapFormulasToCellMap(cellMap, standaloneFormulas)
+
+	// Get the rest of the formulas
+	fmt.Println("****** SOLVING REST OF THE FORMULAS ******")
+	lastFormulas := helpers.GetAllFormulas(cellMap)
+	processedLastFormulas := helpers.MapEvaluatedCellsToFormula(maxRows, cellMap, lastFormulas)
+	simplifiedLastFormulas := functions.SimplifyFormulas(cellMap, processedLastFormulas)
+	for key, formula := range simplifiedLastFormulas {
+		fmt.Println("Start processing formula: ", formula, " on cell: ", key)
+		processed := functions.ProcessFormula(key, formula, &simplifiedLastFormulas)
+		fmt.Println("Processed formula, result: ", processed)
+	}
+
+	// Solve the final expressions
+	fmt.Println("****** SOLVING FINAL EXPRESSIONS ******")
+	for key, formula := range simplifiedLastFormulas {
+		fmt.Println("Start processing expression: ", formula, " on cell: ", key)
+		solvedExpressions := functions.SolveExpression(key, formula, &simplifiedLastFormulas)
+		fmt.Println("Solved final expression, result: ", solvedExpressions)
+	}
+
+	helpers.MapFormulasToCellMap(cellMap, simplifiedLastFormulas)
 	printData(cellMap, maxRows, maxCols)
 }

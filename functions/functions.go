@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/Knetic/govaluate"
 )
 
 func ProcessDoubleCaret(cellMap map[string]string) {
@@ -139,6 +141,23 @@ func solveFunction(fn string) (string, error) {
 	}
 
 	return result, nil
+}
+
+func SolveExpression(key string, expressionString string, expressions *map[string]string) float64 {
+	expression, err := govaluate.NewEvaluableExpression(expressionString)
+	if err != nil {
+		fmt.Println("Error creating expression:", err)
+		return 0
+	}
+
+	result, err := expression.Evaluate(nil)
+	if err != nil {
+		fmt.Println("Error evaluating expression:", err)
+		return 0
+	}
+
+	(*expressions)[key] = fmt.Sprintf("%f", result.(float64))
+	return result.(float64)
 }
 
 func callFunction(funcName string, params []string) (string, error) {

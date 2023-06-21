@@ -62,6 +62,7 @@ func isStandaloneFormula(value string) bool {
 
 	return true
 }
+
 func GetStandaloneFormulas(cellMap map[string]string) map[string]string {
 	standaloneFormulas := make(map[string]string)
 
@@ -75,8 +76,8 @@ func GetStandaloneFormulas(cellMap map[string]string) map[string]string {
 	return standaloneFormulas
 }
 
-// extract standalone formulas from cell map
-func GetFormulas(cellMap map[string]string) map[string]string {
+// extract all formulas from cell map
+func GetAllFormulas(cellMap map[string]string) map[string]string {
 	formulas := make(map[string]string)
 
 	for key, value := range cellMap {
@@ -111,7 +112,7 @@ func MapFormulasToCellMap(cellMap map[string]string, standaloneFormulas map[stri
 func CleanFormula(formula string) string {
 	formula = strings.ReplaceAll(formula, `\`, "")
 	formula = strings.ReplaceAll(formula, `"`, "")
-	formula = strings.Replace(formula, "=", "", 1)
+	formula = strings.ReplaceAll(formula, "=", "")
 	return formula
 }
 
@@ -124,4 +125,62 @@ func FilterEmptyStrings(params []string) []string {
 		}
 	}
 	return filtered
+}
+
+func MapEvaluatedCellsToFormula(maxRow int, cellMap map[string]string, processedFormulas map[string]string) map[string]string {
+	unprocessedCells := []string{}
+
+	// Iterate over your formulas
+	for cell, formula := range processedFormulas {
+		// If formula contains E^v or E^
+		if strings.Contains(formula, "E^v") || strings.Contains(formula, "E^") {
+			// Identify the column from the cell name
+			column := cell[:1]
+
+			// Find the most recently available cell in the column that has data
+			lastCellValue := findLastCellValueInColumn(column, maxRow, cellMap)
+
+			// If the last cell value is a formula, add it to the unprocessedCells slice
+			if isFormula(lastCellValue) {
+				unprocessedCells = append(unprocessedCells, cell)
+				continue
+			}
+
+			// Replace E^v and E^ with its value
+			formula = strings.ReplaceAll(formula, "E^v", lastCellValue)
+			formula = strings.ReplaceAll(formula, "E^", lastCellValue)
+
+			processedFormulas[cell] = formula
+		}
+	}
+
+	// Process unprocessedCells
+	for _, cell := range unprocessedCells {
+		formula := processedFormulas[cell]
+		column := cell[:1]
+		lastCellValue := findLastCellValueInColumn(column, maxRow, cellMap)
+
+		formula = strings.ReplaceAll(formula, "E^v", lastCellValue)
+		formula = strings.ReplaceAll(formula, "E^", lastCellValue)
+
+		processedFormulas[cell] = formula
+	}
+
+	return processedFormulas
+}
+
+func findLastCellValueInColumn(column string, maxRow int, cellMap map[string]string) string {
+	for row := maxRow; row >= 1; row-- {
+		cell := column + strconv.Itoa(row)
+		if cellVal, exists := cellMap[cell]; exists {
+			// Continue if the cell value is a formula or a header
+			if isFormula(cellVal) || strings.HasPrefix(cellVal, "!") {
+				continue
+			}
+			if cellVal != "" {
+				return cellVal
+			}
+		}
+	}
+	return ""
 }
